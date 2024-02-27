@@ -24,6 +24,7 @@ def load_jsonl(path):
 
 def evaluate(gt, pred):    
     scores = collections.defaultdict(list)
+    closed_scores = collections.defaultdict(list)
 
     for gt_item, pred_item in zip(gt, pred):
         gt_results = gt_item.get('conversations', gt_item.get('conversatons'))
@@ -49,9 +50,14 @@ def evaluate(gt, pred):
                 bleu_score = sentence_bleu([gt_value.split()], pred_value.split(), weights=w, smoothing_function=SmoothingFunction().method1)
                 bleu_scores.append(bleu_score)
             scores['bleu_scores'].append(bleu_scores)
+            
 
         #calculate 'yes/no accuracy'
         elif answer_type == 'CLOSED':
+            f1_score, precision, recall = calculate_f1score(pred_value, gt_value)
+            closed_scores['f1'].append(f1_score)
+            closed_scores['precision'].append(precision)
+            closed_scores['recall'].append(recall)
             closed_questions_count += 1
             if gt_value in pred_value:  # Check if gt_value is contained within pred_value
                 closed_questions_correct += 1
@@ -68,6 +74,9 @@ def evaluate(gt, pred):
 
     # Calculate closed question accuracy
     closed_score = (closed_questions_correct / closed_questions_count * 100) if closed_questions_count else 0
+    closed_f1_score_avg = sum(closed_scores['f1']) / len(closed_scores['f1'])
+    closed_precision_avg = sum(closed_scores['precision']) / len(closed_scores['precision'])
+    closed_recall_avg = sum(closed_scores['recall']) / len(closed_scores['recall'])
 
     # Generate evaluation summary
     results_table = tabulate(
@@ -80,6 +89,9 @@ def evaluate(gt, pred):
             ['BLEU Score (Weight 2)', bleu_scores_avg[1]*100],
             ['BLEU Score (Weight 3)', bleu_scores_avg[2]*100],
             ['yes/no accuracy', closed_score*100]
+            ['Closed F1 Score', closed_f1_score_avg*100],
+            ['Closed Precision', closed_precision_avg*100],
+            ['Closed Recall', closed_recall_avg*100],
         ],
         headers=['Metric', 'Performance (%)']
     )
